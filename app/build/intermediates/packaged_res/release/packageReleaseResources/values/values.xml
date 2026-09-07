@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alert_notification_channel_id">beep_alert_channel</string>
+    <string name="alert_notification_channel_name">Beep Sound Alerts</string>
+    <string name="app_name">Beep</string>
+    <string name="service_notification_channel_id">beep_monitoring_channel</string>
+    <string name="service_notification_channel_name">Beep Audio Monitor</string>
+    <string name="service_notification_desc">Monitoring ambient sounds and your name</string>
+    <string name="service_notification_title">Beep is actively listening</string>
+    <style name="Theme.Beep" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#0F172A</item>
+        <item name="android:navigationBarColor">#0F172A</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

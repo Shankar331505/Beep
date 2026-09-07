@@ -1,0 +1,42 @@
+[
+    {
+        "merged": "com.shankar.beep.app-release-54:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.shankar.beep.app-main-55:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.shankar.beep.app-release-54:/raw_alert_chime.wav.flat",
+        "source": "com.shankar.beep.app-main-55:/raw/alert_chime.wav"
+    },
+    {
+        "merged": "com.shankar.beep.app-release-54:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.shankar.beep.app-main-55:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.shankar.beep.app-release-54:/drawable_ic_launcher_background.xml.flat",
+        "source": "com.shankar.beep.app-main-55:/drawable/ic_launcher_background.xml"
+    },
+    {
+        "merged": "com.shankar.beep.app-release-54:/xml_data_extraction_rules.xml.flat",
+        "source": "com.shankar.beep.app-main-55:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.shankar.beep.app-release-54:/raw_alert_name.wav.flat",
+        "source": "com.shankar.beep.app-main-55:/raw/alert_name.wav"
+    },
+    {
+        "merged": "com.shankar.beep.app-release-54:/xml_backup_rules.xml.flat",
+        "source": "com.shankar.beep.app-main-55:/xml/backup_rules.xml"
+    },
+    {
+        "merged": "com.shankar.beep.app-release-54:/raw_alert_emergency.wav.flat",
+        "source": "com.shankar.beep.app-main-55:/raw/alert_emergency.wav"
+    },
+    {
+        "merged": "com.shankar.beep.app-release-54:/drawable_ic_stat_beep.xml.flat",
+        "source": "com.shankar.beep.app-main-55:/drawable/ic_stat_beep.xml"
+    },
+    {
+        "merged": "com.shankar.beep.app-release-54:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.shankar.beep.app-main-55:/mipmap-anydpi-v26/ic_launcher.xml"
+    }
+]
