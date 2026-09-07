@@ -5,22 +5,47 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,9 +56,23 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shankar.beep.data.SoundCatalog
-import com.shankar.beep.model.MonitoredSound
-import com.shankar.beep.ui.components.*
-import com.shankar.beep.ui.theme.*
+import com.shankar.beep.ui.components.BeepToggle
+import com.shankar.beep.ui.components.BeepTopBar
+import com.shankar.beep.ui.components.PrimaryButton
+import com.shankar.beep.ui.components.SoundRowCard
+import com.shankar.beep.ui.components.SurfaceCard
+import com.shankar.beep.ui.theme.Ash
+import com.shankar.beep.ui.theme.Brass
+import com.shankar.beep.ui.theme.BrassWash
+import com.shankar.beep.ui.theme.DisplaySerif
+import com.shankar.beep.ui.theme.Hairline
+import com.shankar.beep.ui.theme.Ink
+import com.shankar.beep.ui.theme.Ivory
+import com.shankar.beep.ui.theme.IvoryMuted
+import com.shankar.beep.ui.theme.Ochre
+import com.shankar.beep.ui.theme.Panel
+import com.shankar.beep.ui.theme.Stone
+import com.shankar.beep.ui.theme.UiSans
 
 @Composable
 fun OnboardingScreen(
@@ -47,7 +86,6 @@ fun OnboardingScreen(
     val hapticEnabled by viewModel.hapticEnabled.collectAsState()
     val flashlightEnabled by viewModel.flashlightEnabled.collectAsState()
 
-    // Bump this key whenever the permission dialog returns so statuses recompute
     var permissionsCheckKey by remember { mutableIntStateOf(0) }
 
     val permissionsLauncher = rememberLauncherForActivityResult(
@@ -82,72 +120,52 @@ fun OnboardingScreen(
             PackageManager.PERMISSION_GRANTED
     }
 
-    LaunchedEffect(Unit) {
-        permissionsLauncher.launch(requiredPermissions)
-    }
-
     Scaffold(
-        containerColor = BgDark,
+        containerColor = Ink,
         topBar = {
-            // Reference Style Top Bar with Circular Back Button
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (currentStep > 0) {
-                    CircularIconButton(
-                        icon = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        onClick = { viewModel.prevStep() }
-                    )
-                } else {
-                    Spacer(modifier = Modifier.size(44.dp))
-                }
-            }
+            BeepTopBar(
+                title = "Beep",
+                onBack = if (currentStep > 0) ({ viewModel.prevStep() }) else null
+            )
         }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .navigationBarsPadding()
                 .padding(horizontal = 24.dp)
         ) {
-            // Step indicator dots
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(bottom = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 for (step in 0..3) {
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(
-                                if (step == currentStep) MintPrimary else CardBorderDark
-                            )
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(1.dp))
+                            .background(if (step <= currentStep) Brass else Hairline)
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
 
             AnimatedContent(
                 targetState = currentStep,
                 transitionSpec = {
                     if (targetState > initialState) {
-                        slideInHorizontally { it } + fadeIn() togetherWith
-                                slideOutHorizontally { -it } + fadeOut()
+                        slideInHorizontally { it / 4 } + fadeIn() togetherWith
+                            slideOutHorizontally { -it / 4 } + fadeOut()
                     } else {
-                        slideInHorizontally { -it } + fadeIn() togetherWith
-                                slideOutHorizontally { it } + fadeOut()
+                        slideInHorizontally { -it / 4 } + fadeIn() togetherWith
+                            slideOutHorizontally { it / 4 } + fadeOut()
                     }
                 },
-                label = "onboarding_step"
+                label = "onboarding_step",
+                modifier = Modifier.weight(1f)
             ) { step ->
                 when (step) {
                     0 -> OnboardingWelcomeStep(
@@ -182,9 +200,6 @@ fun OnboardingScreen(
     }
 }
 
-/**
- * Step 0: Welcome with privacy card + permission status.
- */
 @Composable
 fun OnboardingWelcomeStep(
     onNext: () -> Unit,
@@ -198,150 +213,143 @@ fun OnboardingWelcomeStep(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        Column {
-            Text(
-                text = "Welcome to Beep",
-                color = TextWhite,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
+        Text(
+            text = "Hear what your headphones hide.",
+            color = Ivory,
+            fontFamily = DisplaySerif,
+            fontSize = 34.sp,
+            lineHeight = 40.sp,
+            fontWeight = FontWeight.Medium
+        )
 
-            Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = "Never miss what matters while wearing headphones. Get started on your ambient sound shield in a few simple steps.",
-                color = TextMutedGrey,
-                fontSize = 15.sp,
-                lineHeight = 22.sp
-            )
+        Text(
+            text = "Beep watches the room while you listen. Names, knocks, alarms — delivered into your ears. Audio never leaves the device.",
+            color = IvoryMuted,
+            fontFamily = UiSans,
+            fontSize = 15.sp,
+            lineHeight = 23.sp
+        )
 
-            Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
-            // Privacy Assurance Card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorderDark, RoundedCornerShape(22.dp))
-                    .padding(20.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .background(MintSoftBg),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Security,
-                            contentDescription = null,
-                            tint = MintPrimary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column {
-                        Text(
-                            text = "100% On-Device Privacy",
-                            color = TextWhite,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Audio is analyzed directly in phone memory. Zero cloud transmission.",
-                            color = TextMutedGrey,
-                            fontSize = 13.sp
-                        )
-                    }
+        SurfaceCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(BrassWash),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.Icon(
+                        imageVector = Icons.Outlined.Lock,
+                        contentDescription = null,
+                        tint = Brass,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column {
+                    Text(
+                        text = "On-device only",
+                        color = Ivory,
+                        fontFamily = UiSans,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Classification runs in memory. No cloud, no recordings stored.",
+                        color = IvoryMuted,
+                        fontFamily = UiSans,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-            // Permission status card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorderDark, RoundedCornerShape(22.dp))
-                    .padding(18.dp)
-            ) {
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+        SurfaceCard {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Access",
+                        color = Ivory,
+                        fontFamily = UiSans,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = if (micGranted && notificationGranted) "Ready" else "Required",
+                        color = if (micGranted && notificationGranted) Brass else Ochre,
+                        fontFamily = UiSans,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.4.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                PermissionStatusRow(
+                    label = "Microphone",
+                    detail = "Hears the room around you",
+                    granted = micGranted
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                PermissionStatusRow(
+                    label = "Notifications",
+                    detail = "Heads-up alerts when a sound is found",
+                    granted = notificationGranted
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                PermissionStatusRow(
+                    label = "Camera light",
+                    detail = "Optional. Used only for the torch strobe.",
+                    granted = cameraGranted
+                )
+
+                if (!micGranted || !notificationGranted) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(BrassWash)
+                            .border(1.dp, Brass.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(color = Brass.copy(alpha = 0.25f))
+                            ) { onRequestPermissions() }
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Permissions",
-                            color = TextWhite,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = if (micGranted && notificationGranted) "Ready" else "Action needed",
-                            color = if (micGranted && notificationGranted) MintPrimary else AccentAmber,
-                            fontSize = 12.sp,
+                            text = "Grant access",
+                            color = Brass,
+                            fontFamily = UiSans,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
                         )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    PermissionStatusRow(
-                        label = "Microphone",
-                        detail = "Required — hears the sounds around you",
-                        granted = micGranted
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    PermissionStatusRow(
-                        label = "Notifications",
-                        detail = "Required — heads-up sound alerts",
-                        granted = notificationGranted
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    PermissionStatusRow(
-                        label = "Camera (flashlight)",
-                        detail = "Optional — only for the LED strobe alert",
-                        granted = cameraGranted
-                    )
-
-                    if (!micGranted || !notificationGranted) {
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(MintSoftBg)
-                                .border(1.dp, MintPrimary.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
-                                .clickable { onRequestPermissions() }
-                                .padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Grant permissions",
-                                color = MintPrimary,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
                     }
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(28.dp))
-        MintPillButton(
-            text = "Get Started",
+        PrimaryButton(
+            text = "Continue",
             onClick = onNext
         )
-        Spacer(modifier = Modifier.height(30.dp))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -357,36 +365,36 @@ fun PermissionStatusRow(
     ) {
         Box(
             modifier = Modifier
-                .size(10.dp)
+                .size(8.dp)
                 .clip(CircleShape)
-                .background(if (granted) MintPrimary else AccentAmber)
+                .background(if (granted) Brass else Ash)
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = label,
-                color = TextWhite,
+                color = Ivory,
+                fontFamily = UiSans,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.Medium
             )
             Text(
                 text = detail,
-                color = TextMutedGrey,
+                color = IvoryMuted,
+                fontFamily = UiSans,
                 fontSize = 12.sp
             )
         }
         Text(
-            text = if (granted) "Granted" else "Denied",
-            color = if (granted) MintPrimary else TextMutedGrey,
+            text = if (granted) "Granted" else "Off",
+            color = if (granted) Brass else Stone,
+            fontFamily = UiSans,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium
         )
     }
 }
 
-/**
- * Step 1: Name Input (Styled like Screen 1 text inputs).
- */
 @Composable
 fun OnboardingNameStep(
     userName: String,
@@ -397,77 +405,77 @@ fun OnboardingNameStep(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Column {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             Text(
-                text = "Your Identity",
-                color = TextWhite,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
+                text = "What should we listen for?",
+                color = Ivory,
+                fontFamily = DisplaySerif,
+                fontSize = 32.sp,
+                lineHeight = 38.sp,
+                fontWeight = FontWeight.Medium
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Enter your name or nickname. Beep will listen for people calling you even through loud music.",
-                color = TextMutedGrey,
+                text = "Your name, or a nickname people actually use. Beep will catch it through music.",
+                color = IvoryMuted,
+                fontFamily = UiSans,
                 fontSize = 15.sp,
                 lineHeight = 22.sp
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            // Sleek Text Field matching reference
             OutlinedTextField(
                 value = userName,
                 onValueChange = onNameChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp),
-                placeholder = { Text("Enter your name (e.g. Shankar)", color = TextSubtle) },
+                    .height(58.dp),
+                placeholder = {
+                    Text("Your name", color = Stone, fontFamily = UiSans)
+                },
                 singleLine = true,
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MintPrimary,
-                    unfocusedBorderColor = CardBorderDark,
-                    focusedTextColor = TextWhite,
-                    unfocusedTextColor = TextWhite,
-                    focusedContainerColor = CardDark,
-                    unfocusedContainerColor = CardDark
+                    focusedBorderColor = Brass,
+                    unfocusedBorderColor = Hairline,
+                    focusedTextColor = Ivory,
+                    unfocusedTextColor = Ivory,
+                    cursorColor = Brass,
+                    focusedContainerColor = Panel,
+                    unfocusedContainerColor = Panel
                 )
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Variations Info Card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorderDark, RoundedCornerShape(18.dp))
-                    .padding(18.dp)
-            ) {
+            SurfaceCard {
+                val displayName = userName.trim().ifBlank { "your name" }
                 Column {
-                    val displayName = if (userName.isBlank()) "Shankar" else userName.trim()
                     Text(
-                        text = "Phrases detected automatically:",
-                        color = TextWhite,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
+                        text = "PHRASES",
+                        color = Stone,
+                        fontFamily = UiSans,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 1.4.sp
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "• \"$displayName\"\n• \"Hey $displayName\"\n• \"Hello $displayName\"",
-                        color = TextMutedGrey,
-                        fontSize = 13.sp,
-                        lineHeight = 20.sp
+                        text = "$displayName\nHey $displayName\nHello $displayName",
+                        color = IvoryMuted,
+                        fontFamily = UiSans,
+                        fontSize = 14.sp,
+                        lineHeight = 22.sp
                     )
                 }
             }
         }
 
-        Column(modifier = Modifier.padding(bottom = 30.dp)) {
-            MintPillButton(
+        Column(modifier = Modifier.padding(bottom = 24.dp, top = 16.dp)) {
+            PrimaryButton(
                 text = "Continue",
                 onClick = onNext
             )
@@ -475,9 +483,6 @@ fun OnboardingNameStep(
     }
 }
 
-/**
- * Step 2: Choose Sounds (Sleek grid of cards matching reference).
- */
 @Composable
 fun OnboardingSoundsStep(
     selectedIds: Set<String>,
@@ -485,70 +490,54 @@ fun OnboardingSoundsStep(
     onNext: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier.fillMaxSize()
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Select Sounds",
-                color = TextWhite,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
+        Text(
+            text = "Choose what matters.",
+            color = Ivory,
+            fontFamily = DisplaySerif,
+            fontSize = 32.sp,
+            lineHeight = 38.sp,
+            fontWeight = FontWeight.Medium
+        )
 
-            Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-            Text(
-                text = "Choose which environmental sounds should alert your headphones.",
-                color = TextMutedGrey,
-                fontSize = 15.sp
-            )
+        Text(
+            text = "Only these sounds will interrupt you.",
+            color = IvoryMuted,
+            fontFamily = UiSans,
+            fontSize = 15.sp
+        )
 
-            Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                val chunked = SoundCatalog.DEFAULT_CATALOG.chunked(2)
-                items(chunked) { pair ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        for (sound in pair) {
-                            val isEnabled = selectedIds.contains(sound.id)
-                            SoundGridCard(
-                                sound = sound,
-                                isEnabled = isEnabled,
-                                onToggle = { onToggleSound(sound.id) },
-                                onClick = { onToggleSound(sound.id) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        if (pair.size == 1) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
-                }
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(SoundCatalog.DEFAULT_CATALOG, key = { it.id }) { sound ->
+                val isEnabled = selectedIds.contains(sound.id)
+                SoundRowCard(
+                    sound = sound,
+                    isEnabled = isEnabled,
+                    onToggle = { onToggleSound(sound.id) },
+                    onClick = { onToggleSound(sound.id) }
+                )
             }
+            item { Spacer(modifier = Modifier.height(8.dp)) }
         }
 
-        Column(modifier = Modifier.padding(bottom = 30.dp)) {
-            MintPillButton(
-                text = "Continue (${selectedIds.size} sounds)",
-                onClick = onNext
-            )
-        }
+        PrimaryButton(
+            text = "Continue · ${selectedIds.size} selected",
+            onClick = onNext,
+            modifier = Modifier.padding(bottom = 24.dp, top = 12.dp)
+        )
     }
 }
 
-/**
- * Step 3: Alert Channels Setup.
- */
 @Composable
 fun OnboardingAlertsStep(
     headphone: Boolean,
@@ -563,55 +552,108 @@ fun OnboardingAlertsStep(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Column {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             Text(
-                text = "Alert Channels",
-                color = TextWhite,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
+                text = "How should we reach you?",
+                color = Ivory,
+                fontFamily = DisplaySerif,
+                fontSize = 32.sp,
+                lineHeight = 38.sp,
+                fontWeight = FontWeight.Medium
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Configure how Beep notifies you when an event occurs.",
-                color = TextMutedGrey,
+                text = "Each channel can work alone or together.",
+                color = IvoryMuted,
+                fontFamily = UiSans,
                 fontSize = 15.sp
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Channel Rows
-            SleekAlertChannelCard(
-                title = "Headphone Audio Injection",
-                subtitle = "Ducks active music and plays alert chime in headphones",
+            AlertChannelCard(
+                title = "Headphone chime",
+                subtitle = "Ducks music and plays a short tone in-ear",
                 checked = headphone,
                 onCheckedChange = onHeadphoneChange
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            SleekAlertChannelCard(
-                title = "Custom Haptic Patterns",
-                subtitle = "Distinct vibration patterns for emergency, knocks, and name",
+            AlertChannelCard(
+                title = "Haptics",
+                subtitle = "A distinct pattern for emergency, knock, and name",
                 checked = haptic,
                 onCheckedChange = onHapticChange
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            SleekAlertChannelCard(
-                title = "Camera Flashlight Strobe",
-                subtitle = "Blinks LED torch when phone is face down on a desk",
+            AlertChannelCard(
+                title = "Torch strobe",
+                subtitle = "Brief flashes when the phone is face down",
                 checked = flashlight,
                 onCheckedChange = onFlashlightChange
             )
         }
 
-        Column(modifier = Modifier.padding(bottom = 30.dp)) {
-            MintPillButton(
-                text = "Activate Beep",
+        Column(modifier = Modifier.padding(bottom = 24.dp, top = 16.dp)) {
+            PrimaryButton(
+                text = "Start listening",
                 onClick = onFinish
+            )
+        }
+    }
+}
+
+@Composable
+fun AlertChannelCard(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(Panel)
+            .border(
+                1.dp,
+                if (checked) Brass.copy(alpha = 0.4f) else Hairline,
+                RoundedCornerShape(18.dp)
+            )
+            .padding(16.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = Ivory,
+                    fontFamily = UiSans,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = subtitle,
+                    color = IvoryMuted,
+                    fontFamily = UiSans,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            BeepToggle(
+                checked = checked,
+                onCheckedChange = onCheckedChange
             )
         }
     }
@@ -624,43 +666,10 @@ fun SleekAlertChannelCard(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(CardDark)
-            .border(
-                1.dp,
-                if (checked) MintPrimary.copy(alpha = 0.5f) else CardBorderDark,
-                RoundedCornerShape(20.dp)
-            )
-            .padding(18.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    color = TextWhite,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    color = TextMutedGrey,
-                    fontSize = 13.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            SleekPowerToggle(
-                checked = checked,
-                onCheckedChange = onCheckedChange
-            )
-        }
-    }
+    AlertChannelCard(
+        title = title,
+        subtitle = subtitle,
+        checked = checked,
+        onCheckedChange = onCheckedChange
+    )
 }

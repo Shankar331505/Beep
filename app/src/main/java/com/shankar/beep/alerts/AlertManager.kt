@@ -108,26 +108,41 @@ class AlertManager(private val context: Context) {
                     )
                 }
 
-                mediaPlayer = MediaPlayer.create(context, toneRes)
-                mediaPlayer?.setAudioAttributes(playbackAttributes)
-                mediaPlayer?.setOnCompletionListener { mp ->
-                    mp.release()
-                    // Restore music volume
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
-                        audioManager?.abandonAudioFocusRequest(focusRequest)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        audioManager?.abandonAudioFocus(null)
-                    }
+                val player = MediaPlayer.create(context, toneRes)
+                if (player == null) {
+                    abandonFocus(focusRequest)
+                    return@launch
                 }
-                mediaPlayer?.start()
+                mediaPlayer = player
+                player.setAudioAttributes(playbackAttributes)
+                player.setOnCompletionListener { mp ->
+                    mp.release()
+                    abandonFocus(focusRequest)
+                }
+                player.setOnErrorListener { mp, _, _ ->
+                    mp.release()
+                    abandonFocus(focusRequest)
+                    true
+                }
+                player.start()
             } catch (e: Exception) {
                 Log.e(tag, "Error playing alert tone", e)
                 mediaPlayer?.release()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
-                    audioManager?.abandonAudioFocusRequest(focusRequest)
-                }
+                abandonFocus(focusRequest)
             }
+        }
+    }
+
+    private fun abandonFocus(focusRequest: AudioFocusRequest?) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
+                audioManager?.abandonAudioFocusRequest(focusRequest)
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager?.abandonAudioFocus(null)
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Error abandoning audio focus", e)
         }
     }
 

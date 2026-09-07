@@ -23,12 +23,12 @@ import com.shankar.beep.data.DetectionHistoryRepository
 import com.shankar.beep.data.SoundCatalog
 import com.shankar.beep.data.UserPreferencesRepository
 import com.shankar.beep.data.UserSettings
-import com.shankar.beep.model.MonitoredSound
 import com.shankar.beep.model.SoundCategory
 import com.shankar.beep.model.SoundEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,7 +37,8 @@ import kotlinx.coroutines.launch
 class AudioMonitoringService : Service() {
 
     private val tag = "AudioMonitoringService"
-    private val scope = CoroutineScope(Dispatchers.Default)
+    private val serviceJob = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.Default + serviceJob)
 
     private lateinit var userPreferencesRepository: UserPreferencesRepository
     private lateinit var alertManager: AlertManager
@@ -106,6 +107,9 @@ class AudioMonitoringService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                CoroutineScope(Dispatchers.IO).launch {
+                    userPreferencesRepository.setMonitoringActive(false)
+                }
                 stopMonitoring()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -127,11 +131,17 @@ class AudioMonitoringService : Service() {
             userPreferencesRepository.userSettingsFlow.collect { settings ->
                 currentSettings = settings
                 nameDetectorEngine.updateTargetName(settings.userName)
+                val nameEnabled = settings.enabledSoundIds.contains(SoundCatalog.SOUND_ID_NAME) &&
+                    settings.userName.isNotBlank()
+                if (nameEnabled) {
+                    nameDetectorEngine.startListening()
+                } else {
+                    nameDetectorEngine.stopListening()
+                }
             }
         }
 
         audioCaptureEngine.startCapture()
-        nameDetectorEngine.startListening()
         Log.i(tag, "Audio monitoring service started")
     }
 
@@ -148,10 +158,9 @@ class AudioMonitoringService : Service() {
         val decibel = DecibelMeter.calculateDecibel(buffer, readSize)
         _currentDecibel.value = decibel
 
-        // 1. Sudden loud impact detection
         if (currentSettings.enabledSoundIds.contains(SoundCatalog.SOUND_ID_SUDDEN_LOUD)) {
             val threshold = currentSettings.soundThresholds[SoundCatalog.SOUND_ID_SUDDEN_LOUD] ?: 0.65f
-            val triggerDb = 75f + (threshold * 20f) // maps 0.5-0.9 to 85-93 dB
+            val triggerDb = 75f + (threshold * 20f)
             if (DecibelMeter.isSuddenLoudSpike(decibel, triggerDb)) {
                 handleSoundDetected(
                     soundId = SoundCatalog.SOUND_ID_SUDDEN_LOUD,
@@ -162,7 +171,6 @@ class AudioMonitoringService : Service() {
             }
         }
 
-        // 2. YAMNet Environmental Sound Classification
         val enabledSounds = SoundCatalog.DEFAULT_CATALOG.filter { sound ->
             currentSettings.enabledSoundIds.contains(sound.id) && sound.yamnetLabels.isNotEmpty()
         }.map { sound ->
@@ -227,8 +235,8 @@ class AudioMonitoringService : Service() {
 
         val alertNotification = NotificationCompat.Builder(this, getString(R.string.alert_notification_channel_id))
             .setSmallIcon(R.drawable.ic_stat_beep)
-            .setContentTitle("Beep Alert: ${event.soundName}")
-            .setContentText("Detected with ${(event.confidence * 100).toInt()}% confidence at ${event.decibel.toInt()} dB")
+            .setContentTitle("Beep: ${event.soundName}")
+            .setContentText("${(event.confidence * 100).toInt()}% match at ${event.decibel.toInt()} dB")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
@@ -264,7 +272,7 @@ class AudioMonitoringService : Service() {
             .setContentIntent(pendingMain)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
-            .addAction(0, "Pause Listening", pendingStop)
+            .addAction(0, "Pause", pendingStop)
             .build()
     }
 
@@ -272,23 +280,21 @@ class AudioMonitoringService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-            // Background Monitoring Channel (Silent ongoing)
             val serviceChannel = NotificationChannel(
                 getString(R.string.service_notification_channel_id),
                 getString(R.string.service_notification_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Shows active background sound listening state"
+                description = "Shows when Beep is listening in the background"
                 setShowBadge(false)
             }
 
-            // Urgent Sound Alert Channel (High priority heads-up)
             val alertChannel = NotificationChannel(
                 getString(R.string.alert_notification_channel_id),
                 getString(R.string.alert_notification_channel_name),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Critical heads-up sound alerts"
+                description = "Heads-up alerts when a watched sound is heard"
                 enableVibration(true)
                 setShowBadge(true)
             }
@@ -306,7 +312,7 @@ class AudioMonitoringService : Service() {
                 "Beep::AudioMonitoringWakeLock"
             ).apply {
                 setReferenceCounted(false)
-                acquire(12 * 60 * 60 * 1000L) // 12 hours max safety limit
+                acquire(12 * 60 * 60 * 1000L)
             }
         } catch (e: Exception) {
             Log.e(tag, "Error acquiring WakeLock", e)
@@ -327,6 +333,7 @@ class AudioMonitoringService : Service() {
     override fun onDestroy() {
         stopMonitoring()
         yamnetClassifier.close()
+        serviceJob.cancel()
         super.onDestroy()
     }
 

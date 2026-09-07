@@ -74,6 +74,16 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     fun toggleSoundEnabled(soundId: String, isEnabled: Boolean) {
         viewModelScope.launch {
             userPreferencesRepository.toggleSoundEnabled(soundId, isEnabled)
+            userPreferencesRepository.setActivePreset("")
+        }
+    }
+
+    fun setSoundsEnabled(soundIds: Collection<String>, enabled: Boolean) {
+        viewModelScope.launch {
+            val next = userSettings.value.enabledSoundIds.toMutableSet()
+            if (enabled) next.addAll(soundIds) else next.removeAll(soundIds.toSet())
+            userPreferencesRepository.setEnabledSounds(next)
+            userPreferencesRepository.setActivePreset("")
         }
     }
 
@@ -86,59 +96,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     fun applyPreset(presetName: String) {
         viewModelScope.launch {
             userPreferencesRepository.setActivePreset(presetName)
-            when (presetName) {
-                "Focus / Study" -> {
-                    // Only Name, Door Knock, and Fire Alarm
-                    userPreferencesRepository.setEnabledSounds(
-                        setOf(
-                            SoundCatalog.SOUND_ID_NAME,
-                            SoundCatalog.SOUND_ID_KNOCK,
-                            SoundCatalog.SOUND_ID_FIRE_ALARM
-                        )
-                    )
-                }
-                "Home / Relax" -> {
-                    // All domestic and emergency
-                    userPreferencesRepository.setEnabledSounds(
-                        setOf(
-                            SoundCatalog.SOUND_ID_NAME,
-                            SoundCatalog.SOUND_ID_KNOCK,
-                            SoundCatalog.SOUND_ID_DOORBELL,
-                            SoundCatalog.SOUND_ID_GLASS,
-                            SoundCatalog.SOUND_ID_FIRE_ALARM,
-                            SoundCatalog.SOUND_ID_BABY_CRY,
-                            SoundCatalog.SOUND_ID_DOG_BARK
-                        )
-                    )
-                }
-                "Outdoor / Commute" -> {
-                    // Siren, sudden loud, scream, whistle
-                    userPreferencesRepository.setEnabledSounds(
-                        setOf(
-                            SoundCatalog.SOUND_ID_NAME,
-                            SoundCatalog.SOUND_ID_SIREN,
-                            SoundCatalog.SOUND_ID_SUDDEN_LOUD,
-                            SoundCatalog.SOUND_ID_SCREAM,
-                            SoundCatalog.SOUND_ID_WHISTLE
-                        )
-                    )
-                }
-                else -> {
-                    // Balanced default
-                    userPreferencesRepository.setEnabledSounds(
-                        setOf(
-                            SoundCatalog.SOUND_ID_NAME,
-                            SoundCatalog.SOUND_ID_CLAP,
-                            SoundCatalog.SOUND_ID_GLASS,
-                            SoundCatalog.SOUND_ID_KNOCK,
-                            SoundCatalog.SOUND_ID_DOORBELL,
-                            SoundCatalog.SOUND_ID_FIRE_ALARM,
-                            SoundCatalog.SOUND_ID_SIREN,
-                            SoundCatalog.SOUND_ID_SUDDEN_LOUD
-                        )
-                    )
-                }
-            }
+            userPreferencesRepository.setEnabledSounds(SoundCatalog.soundsForPreset(presetName))
         }
     }
 

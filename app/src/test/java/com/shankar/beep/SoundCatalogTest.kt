@@ -28,6 +28,18 @@ class SoundCatalogTest {
     }
 
     @Test
+    fun testPresetsContainKnownSounds() {
+        val focus = SoundCatalog.soundsForPreset("Focus / Study")
+        assertTrue(focus.contains(SoundCatalog.SOUND_ID_NAME))
+        assertTrue(focus.contains(SoundCatalog.SOUND_ID_KNOCK))
+        assertFalse(focus.contains(SoundCatalog.SOUND_ID_DOG_BARK))
+
+        val balanced = SoundCatalog.soundsForPreset("Balanced")
+        assertTrue(balanced.contains(SoundCatalog.SOUND_ID_FIRE_ALARM))
+        assertTrue(balanced.size >= 6)
+    }
+
+    @Test
     fun testThresholdRangesAreValid() {
         for (sound in SoundCatalog.DEFAULT_CATALOG) {
             assertTrue(
