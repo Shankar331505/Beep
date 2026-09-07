@@ -59,8 +59,7 @@ class AudioCaptureEngine(
 
                 while (isActive) {
                     val read = audioRecord?.read(readBuffer, 0, frameSize) ?: 0
-                    if (read > 0) {
-                        // Shift rolling buffer left by 'read' samples
+                    if (read > 0 && read <= rollingBufferSize) {
                         System.arraycopy(
                             rollingBuffer,
                             read,
@@ -68,7 +67,6 @@ class AudioCaptureEngine(
                             0,
                             rollingBufferSize - read
                         )
-                        // Append new samples at the end
                         System.arraycopy(
                             readBuffer,
                             0,
@@ -76,8 +74,6 @@ class AudioCaptureEngine(
                             rollingBufferSize - read,
                             read
                         )
-
-                        // Dispatch rolling buffer for continuous classification
                         onAudioChunkReady(rollingBuffer, rollingBufferSize)
                     }
                 }

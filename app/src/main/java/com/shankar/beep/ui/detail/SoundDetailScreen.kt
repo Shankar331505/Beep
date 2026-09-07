@@ -1,15 +1,33 @@
 package com.shankar.beep.ui.detail
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,11 +35,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.shankar.beep.data.SoundCatalog
-import com.shankar.beep.model.MonitoredSound
-import com.shankar.beep.model.SoundCategory
-import com.shankar.beep.ui.components.*
+import com.shankar.beep.ui.components.BeepToggle
+import com.shankar.beep.ui.components.BeepTopBar
+import com.shankar.beep.ui.components.PrimaryButton
+import com.shankar.beep.ui.components.SoundIcon
+import com.shankar.beep.ui.components.SurfaceCard
+import com.shankar.beep.ui.components.categoryAccent
+import com.shankar.beep.ui.components.categoryWash
 import com.shankar.beep.ui.dashboard.DashboardViewModel
-import com.shankar.beep.ui.theme.*
+import com.shankar.beep.ui.theme.Brass
+import com.shankar.beep.ui.theme.DisplaySerif
+import com.shankar.beep.ui.theme.Ink
+import com.shankar.beep.ui.theme.InkRaised
+import com.shankar.beep.ui.theme.Ivory
+import com.shankar.beep.ui.theme.IvoryMuted
+import com.shankar.beep.ui.theme.Stone
+import com.shankar.beep.ui.theme.UiSans
 
 @Composable
 fun SoundDetailScreen(
@@ -34,10 +63,12 @@ fun SoundDetailScreen(
 
     if (sound == null) {
         Box(
-            modifier = Modifier.fillMaxSize().background(BgDark),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Ink),
             contentAlignment = Alignment.Center
         ) {
-            Text("Sound not found", color = TextWhite)
+            Text("Sound not found", color = Ivory, fontFamily = UiSans)
         }
         return
     }
@@ -45,135 +76,97 @@ fun SoundDetailScreen(
     val currentThreshold = userSettings.soundThresholds[sound.id] ?: sound.defaultConfidenceThreshold
     var sliderValue by remember(currentThreshold) { mutableFloatStateOf(currentThreshold) }
     val isEnabled = userSettings.enabledSoundIds.contains(sound.id)
+    val accent = categoryAccent(sound.category)
+    val wash = categoryWash(sound.category)
 
     Scaffold(
-        containerColor = BgDark,
+        containerColor = Ink,
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CircularIconButton(
-                    icon = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    onClick = onBack
-                )
-
-                Text(
-                    text = sound.displayName,
-                    color = TextWhite,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.size(44.dp))
-            }
+            BeepTopBar(
+                title = sound.displayName,
+                onBack = onBack
+            )
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Sound Header Card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(CardDark)
-                    .border(
-                        1.5.dp,
-                        if (isEnabled) MintBorder else CardBorderDark,
-                        RoundedCornerShape(26.dp)
-                    )
-                    .padding(22.dp)
-            ) {
+            SurfaceCard(highlighted = isEnabled) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (isEnabled) MintSoftBg else SurfaceDark
-                            ),
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (isEnabled) wash else InkRaised),
                         contentAlignment = Alignment.Center
                     ) {
                         SoundIcon(
                             iconName = sound.iconName,
                             contentDescription = sound.displayName,
-                            tint = if (isEnabled) MintPrimary else TextMutedGrey,
-                            modifier = Modifier.size(28.dp)
+                            tint = if (isEnabled) accent else Stone,
+                            modifier = Modifier.size(26.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = sound.displayName,
-                            color = TextWhite,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = sound.category.displayName,
-                            color = MintPrimary,
-                            fontSize = 13.sp,
+                            color = Ivory,
+                            fontFamily = DisplaySerif,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = sound.category.displayName.uppercase(),
+                            color = accent,
+                            fontFamily = UiSans,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 1.2.sp
                         )
                     }
 
-                    SleekPowerToggle(
+                    BeepToggle(
                         checked = isEnabled,
                         onCheckedChange = { viewModel.toggleSoundEnabled(sound.id, it) }
                     )
                 }
             }
 
-            // Description Box
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorderDark, RoundedCornerShape(20.dp))
-                    .padding(18.dp)
-            ) {
+            SurfaceCard {
                 Column {
                     Text(
-                        text = "Description",
-                        color = TextMutedGrey,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
+                        text = "ABOUT",
+                        color = Stone,
+                        fontFamily = UiSans,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 1.4.sp
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = sound.description,
-                        color = TextWhite,
+                        color = Ivory,
+                        fontFamily = UiSans,
                         fontSize = 15.sp,
                         lineHeight = 22.sp
                     )
                 }
             }
 
-            // Confidence Sensitivity Slider
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorderDark, RoundedCornerShape(20.dp))
-                    .padding(20.dp)
-            ) {
+            SurfaceCard {
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -181,28 +174,32 @@ fun SoundDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Detection Sensitivity",
-                            color = TextWhite,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            text = "Sensitivity",
+                            color = Ivory,
+                            fontFamily = UiSans,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             text = "${(sliderValue * 100).toInt()}%",
-                            color = MintPrimary,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
+                            color = Brass,
+                            fontFamily = DisplaySerif,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "Fine-tune the confidence threshold required before triggering alerts into your headphones.",
-                        color = TextMutedGrey,
-                        fontSize = 13.sp
+                        text = "Higher values wait for a stronger match before interrupting you.",
+                        color = IvoryMuted,
+                        fontFamily = UiSans,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp
                     )
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Slider(
                         value = sliderValue,
@@ -212,22 +209,29 @@ fun SoundDetailScreen(
                         },
                         valueRange = 0.45f..0.95f,
                         colors = SliderDefaults.colors(
-                            thumbColor = MintPrimary,
-                            activeTrackColor = MintPrimary,
-                            inactiveTrackColor = SurfaceDark
+                            thumbColor = Brass,
+                            activeTrackColor = Brass,
+                            inactiveTrackColor = InkRaised
                         )
                     )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("More alerts", color = Stone, fontFamily = UiSans, fontSize = 11.sp)
+                        Text("Fewer alerts", color = Stone, fontFamily = UiSans, fontSize = 11.sp)
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Simulate Test Alert (Mint Pill Button)
-            MintPillButton(
-                text = "Simulate & Test Alert",
-                leadingIcon = Icons.Default.PlayArrow,
+            PrimaryButton(
+                text = "Test this alert",
+                leadingIcon = Icons.Outlined.PlayArrow,
                 onClick = { viewModel.testTriggerAlert(sound) },
-                modifier = Modifier.padding(bottom = 24.dp)
+                modifier = Modifier.padding(bottom = 28.dp)
             )
         }
     }

@@ -1,9 +1,9 @@
 <resources>
     <string name="app_name">Beep</string>
     <string name="service_notification_channel_id">beep_monitoring_channel</string>
-    <string name="service_notification_channel_name">Beep Audio Monitor</string>
-    <string name="service_notification_title">Beep is actively listening</string>
-    <string name="service_notification_desc">Monitoring ambient sounds and your name</string>
+    <string name="service_notification_channel_name">Listening</string>
+    <string name="service_notification_title">Beep is listening</string>
+    <string name="service_notification_desc">Watching the room around you</string>
     <string name="alert_notification_channel_id">beep_alert_channel</string>
-    <string name="alert_notification_channel_name">Beep Sound Alerts</string>
+    <string name="alert_notification_channel_name">Sound alerts</string>
 </resources>

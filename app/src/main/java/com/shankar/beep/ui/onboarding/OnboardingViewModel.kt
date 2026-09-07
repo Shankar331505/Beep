@@ -8,7 +8,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.shankar.beep.data.SoundCatalog
 import com.shankar.beep.data.UserPreferencesRepository
-import com.shankar.beep.model.MonitoredSound
 import com.shankar.beep.service.AudioMonitoringService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

@@ -1,27 +1,50 @@
 package com.shankar.beep.ui.dashboard
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shankar.beep.data.SoundCatalog
 import com.shankar.beep.model.SoundCategory
-import com.shankar.beep.ui.components.*
-import com.shankar.beep.ui.theme.*
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.shankar.beep.ui.components.BeepTopBar
+import com.shankar.beep.ui.components.CircularIconButton
+import com.shankar.beep.ui.components.FilterChip
+import com.shankar.beep.ui.components.HeroAmbientCard
+import com.shankar.beep.ui.components.ListeningStatusPill
+import com.shankar.beep.ui.components.SectionLabel
+import com.shankar.beep.ui.components.SoundRowCard
+import com.shankar.beep.ui.components.ActivityItemCard
+import com.shankar.beep.ui.theme.Ink
+import com.shankar.beep.ui.theme.IvoryMuted
+import com.shankar.beep.ui.theme.UiSans
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun DashboardScreen(
@@ -37,7 +60,7 @@ fun DashboardScreen(
     val permissionMessage by viewModel.permissionMessage.collectAsState()
 
     var selectedCategoryFilter by remember { mutableStateOf("All") }
-    val categoryFilters = listOf("All", "Social", "Emergency", "Domestic")
+    val categoryFilters = listOf("All", "Social", "Emergency", "Home")
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -48,58 +71,48 @@ fun DashboardScreen(
         }
     }
 
-    // Filter sounds
     val filteredSounds = remember(selectedCategoryFilter, userSettings.enabledSoundIds) {
         SoundCatalog.DEFAULT_CATALOG.filter { sound ->
             when (selectedCategoryFilter) {
                 "Emergency" -> sound.category == SoundCategory.EMERGENCY
-                "Domestic" -> sound.category == SoundCategory.DOMESTIC
+                "Home" -> sound.category == SoundCategory.DOMESTIC
                 "Social" -> sound.category == SoundCategory.SOCIAL
                 else -> true
             }
         }
     }
 
+    val allFilteredEnabled = filteredSounds.isNotEmpty() &&
+        filteredSounds.all { userSettings.enabledSoundIds.contains(it.id) }
+
     Scaffold(
-        containerColor = BgDark,
+        containerColor = Ink,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            // Centered title with live status on the left and settings on the right
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 14.dp)
-            ) {
-                ListeningStatusPill(
-                    isListening = isListening,
-                    modifier = Modifier.align(Alignment.CenterStart)
-                )
-
-                Text(
-                    text = "Beep",
-                    color = TextWhite,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-
-                CircularIconButton(
-                    icon = Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    onClick = onNavigateToSettings,
-                    modifier = Modifier.align(Alignment.CenterEnd)
-                )
-            }
+            BeepTopBar(
+                title = "Beep",
+                leading = {
+                    ListeningStatusPill(isListening = isListening)
+                },
+                trailing = {
+                    CircularIconButton(
+                        icon = Icons.Outlined.Tune,
+                        contentDescription = "Preferences",
+                        onClick = onNavigateToSettings
+                    )
+                }
+            )
         }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .navigationBarsPadding()
                 .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            contentPadding = PaddingValues(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Hero card: decibel + waveform + power control
             item {
                 HeroAmbientCard(
                     decibel = currentDecibel,
@@ -111,22 +124,16 @@ fun DashboardScreen(
                 )
             }
 
-            // 2. Listening presets (one-tap sound bundles)
             item {
                 Column {
-                    Text(
-                        text = "Listening Mode",
-                        color = TextMutedGrey,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(start = 2.dp, bottom = 8.dp)
-                    )
+                    SectionLabel(text = "Listening mode")
+                    Spacer(modifier = Modifier.height(10.dp))
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         items(SoundCatalog.LISTENING_PRESETS) { preset ->
-                            SleekCapsuleChip(
+                            FilterChip(
                                 text = preset.label,
                                 isSelected = userSettings.activePresetName == preset.key,
                                 onClick = { viewModel.applyPreset(preset.key) }
@@ -136,97 +143,55 @@ fun DashboardScreen(
                 }
             }
 
-            // 3. Horizontal category chips
             item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(categoryFilters) { filter ->
-                        SleekCapsuleChip(
-                            text = filter,
-                            isSelected = selectedCategoryFilter == filter,
-                            onClick = { selectedCategoryFilter = filter }
-                        )
-                    }
-                }
-            }
-
-            // 4. Section Title: "Sounds" + "Enable all"
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
+                Column {
+                    SectionLabel(
                         text = "Sounds",
-                        color = TextWhite,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        text = "Enable all",
-                        color = MintPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clickable {
-                            for (sound in SoundCatalog.DEFAULT_CATALOG) {
-                                viewModel.toggleSoundEnabled(sound.id, true)
-                            }
+                        action = if (allFilteredEnabled) "Disable all" else "Enable all",
+                        onAction = {
+                            viewModel.setSoundsEnabled(
+                                filteredSounds.map { it.id },
+                                !allFilteredEnabled
+                            )
                         }
                     )
-                }
-            }
-
-            // 5. 2x2 Grid of Sound Cards
-            val chunkedSounds = filteredSounds.chunked(2)
-            items(chunkedSounds) { pair ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    for (sound in pair) {
-                        val isEnabled = userSettings.enabledSoundIds.contains(sound.id)
-                        SoundGridCard(
-                            sound = sound,
-                            isEnabled = isEnabled,
-                            onToggle = { viewModel.toggleSoundEnabled(sound.id, it) },
-                            onClick = { onNavigateToSoundDetail(sound.id) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    if (pair.size == 1) {
-                        Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(categoryFilters) { filter ->
+                            FilterChip(
+                                text = filter,
+                                isSelected = selectedCategoryFilter == filter,
+                                onClick = { selectedCategoryFilter = filter }
+                            )
+                        }
                     }
                 }
             }
 
-            // 6. Activity Timeline
+            items(filteredSounds, key = { it.id }) { sound ->
+                val isEnabled = userSettings.enabledSoundIds.contains(sound.id)
+                SoundRowCard(
+                    sound = sound,
+                    isEnabled = isEnabled,
+                    onToggle = { viewModel.toggleSoundEnabled(sound.id, it) },
+                    onClick = { onNavigateToSoundDetail(sound.id) }
+                )
+            }
+
             item {
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Activity",
-                        color = TextWhite,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    if (recentEvents.isNotEmpty()) {
-                        Text(
-                            text = "Clear history",
-                            color = TextMutedGrey,
-                            fontSize = 13.sp,
-                            modifier = Modifier.clickable { viewModel.clearHistory() }
-                        )
+                Spacer(modifier = Modifier.height(4.dp))
+                SectionLabel(
+                    text = "Activity",
+                    action = if (recentEvents.isNotEmpty()) "Clear" else null,
+                    onAction = if (recentEvents.isNotEmpty()) {
+                        { viewModel.clearHistory() }
+                    } else {
+                        null
                     }
-                }
+                )
             }
 
             if (recentEvents.isEmpty()) {
@@ -234,30 +199,41 @@ fun DashboardScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 20.dp),
+                            .padding(vertical = 28.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No sound detections yet. Listening in background...",
-                            color = TextMutedGrey,
+                            text = if (isListening) {
+                                "Nothing heard yet. Beep is listening."
+                            } else {
+                                "History appears here once a sound is detected."
+                            },
+                            color = IvoryMuted,
+                            fontFamily = UiSans,
                             fontSize = 13.sp
                         )
                     }
                 }
             } else {
-                val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
-                items(recentEvents) { event ->
-                    val formatted = timeFormat.format(Date(event.timestamp))
+                items(recentEvents, key = { it.id }) { event ->
                     ActivityItemCard(
                         event = event,
-                        formattedTime = formatted
+                        formattedTime = relativeTime(event.timestamp)
                     )
                 }
             }
-
-            item {
-                Spacer(modifier = Modifier.height(30.dp))
-            }
         }
+    }
+}
+
+private fun relativeTime(timestamp: Long): String {
+    val delta = System.currentTimeMillis() - timestamp
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(delta)
+    val hours = TimeUnit.MILLISECONDS.toHours(delta)
+    return when {
+        minutes < 1 -> "Now"
+        minutes < 60 -> "${minutes}m"
+        hours < 24 -> "${hours}h"
+        else -> "${TimeUnit.MILLISECONDS.toDays(delta)}d"
     }
 }

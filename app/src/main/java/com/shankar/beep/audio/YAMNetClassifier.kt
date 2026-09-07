@@ -2,7 +2,6 @@ package com.shankar.beep.audio
 
 import android.content.Context
 import android.util.Log
-import com.shankar.beep.data.SoundCatalog
 import com.shankar.beep.model.MonitoredSound
 import org.tensorflow.lite.support.audio.TensorAudio
 import org.tensorflow.lite.task.audio.classifier.AudioClassifier
@@ -96,8 +95,9 @@ class YAMNetClassifier(private val context: Context) {
                         if (sound.yamnetLabels.isEmpty()) continue
 
                         val isMatch = sound.yamnetLabels.any { targetLabel ->
-                            label.contains(targetLabel, ignoreCase = true) ||
-                                    targetLabel.contains(label, ignoreCase = true)
+                            label.equals(targetLabel, ignoreCase = true) ||
+                                label.startsWith("$targetLabel,", ignoreCase = true) ||
+                                label.contains(targetLabel, ignoreCase = true)
                         }
 
                         if (isMatch && score >= sound.confidenceThreshold) {
@@ -112,7 +112,7 @@ class YAMNetClassifier(private val context: Context) {
                     }
                 }
             }
-            results
+            results.distinctBy { it.monitoredSound.id }
         } catch (e: Exception) {
             Log.e(tag, "Error during audio classification", e)
             emptyList()
@@ -121,10 +121,12 @@ class YAMNetClassifier(private val context: Context) {
 
     fun close() {
         try {
-            classifier = null
-            tensorAudio = null
+            classifier?.close()
         } catch (e: Exception) {
             Log.e(tag, "Error closing classifier", e)
+        } finally {
+            classifier = null
+            tensorAudio = null
         }
     }
 }

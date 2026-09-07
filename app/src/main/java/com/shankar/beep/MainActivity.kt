@@ -2,8 +2,10 @@ package com.shankar.beep
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,7 +21,7 @@ import com.shankar.beep.data.UserPreferencesRepository
 import com.shankar.beep.service.AudioMonitoringService
 import com.shankar.beep.ui.navigation.BeepNavGraph
 import com.shankar.beep.ui.theme.BeepTheme
-import com.shankar.beep.ui.theme.DarkBackground
+import com.shankar.beep.ui.theme.Ink
 
 class MainActivity : ComponentActivity() {
 
@@ -27,7 +29,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT)
+        )
 
         userPreferencesRepository = UserPreferencesRepository(applicationContext)
 
@@ -54,7 +59,7 @@ class MainActivity : ComponentActivity() {
             BeepTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = DarkBackground
+                    color = Ink
                 ) {
                     if (userSettings != null) {
                         BeepNavGraph(

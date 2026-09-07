@@ -22,6 +22,7 @@ class NameDetectorEngine(
     private var aliases: List<String> = emptyList()
     private var isListening = false
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var restartDelayMs = 400L
 
     fun updateTargetName(name: String) {
         val trimmed = name.trim().lowercase()
@@ -41,14 +42,15 @@ class NameDetectorEngine(
     }
 
     fun startListening() {
-        if (targetName.isEmpty()) return
-
         mainHandler.post {
+            if (targetName.isEmpty()) return@post
+            if (isListening && speechRecognizer != null) return@post
             try {
                 if (SpeechRecognizer.isRecognitionAvailable(context)) {
                     initializeRecognizer()
                     startRecognizerIntent()
                     isListening = true
+                    restartDelayMs = 400L
                 } else {
                     Log.w(tag, "Speech recognition not available on this device")
                 }
@@ -83,24 +85,31 @@ class NameDetectorEngine(
                 override fun onEndOfSpeech() {}
 
                 override fun onError(error: Int) {
-                    // Automatically restart listening if still enabled
-                    if (isListening) {
-                        mainHandler.postDelayed({
-                            if (isListening) {
-                                startRecognizerIntent()
-                            }
-                        }, 500)
+                    if (!isListening) return
+                    // Back off when the mic is busy (AudioRecord is also running)
+                    val delay = when (error) {
+                        SpeechRecognizer.ERROR_RECOGNIZER_BUSY,
+                        SpeechRecognizer.ERROR_CLIENT,
+                        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> restartDelayMs
+                        else -> 400L
                     }
+                    restartDelayMs = (restartDelayMs * 2).coerceAtMost(8_000L)
+                    mainHandler.postDelayed({
+                        if (isListening) {
+                            startRecognizerIntent()
+                        }
+                    }, delay)
                 }
 
                 override fun onResults(results: Bundle?) {
                     handleSpeechResults(results)
+                    restartDelayMs = 400L
                     if (isListening) {
                         mainHandler.postDelayed({
                             if (isListening) {
                                 startRecognizerIntent()
                             }
-                        }, 300)
+                        }, 350)
                     }
                 }
 
