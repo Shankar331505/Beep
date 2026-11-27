@@ -1,0 +1,5 @@
+<resources>
+    <color name="canvas">#F5F4F1</color>
+    <color name="beacon">#FF7A45</color>
+    <color name="launcher_bg">#0B0C0F</color>
+</resources>

@@ -1,3 +1,3 @@
-# Proguard rules for Beep
+# TensorFlow Lite uses JNI and reflection internally.
 -keep class org.tensorflow.lite.** { *; }
--keep class org.tensorflow.lite.task.** { *; }
+-dontwarn org.tensorflow.lite.**
