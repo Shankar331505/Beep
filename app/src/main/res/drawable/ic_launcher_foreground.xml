@@ -4,14 +4,23 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Three instrument bars — quiet, listening mark -->
+    <!-- Core: the beacon -->
     <path
-        android:fillColor="#C4A574"
-        android:pathData="M44,46 C44,44.9 44.9,44 46,44 C47.1,44 48,44.9 48,46 L48,62 C48,63.1 47.1,64 46,64 C44.9,64 44,63.1 44,62 Z" />
+        android:fillColor="#FF7A45"
+        android:pathData="M54,54m-9,0a9,9 0,1 1,18 0a9,9 0,1 1,-18 0" />
+    <!-- Inner sound arcs -->
     <path
-        android:fillColor="#F3EEE4"
-        android:pathData="M52,34 C52,32.9 52.9,32 54,32 C55.1,32 56,32.9 56,34 L56,74 C56,75.1 55.1,76 54,76 C52.9,76 52,75.1 52,74 Z" />
+        android:strokeColor="#FF7A45"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M40.5,40.5 A19,19 0 0,0 40.5,67.5 M67.5,40.5 A19,19 0 0,1 67.5,67.5" />
+    <!-- Outer sound arcs -->
     <path
-        android:fillColor="#C4A574"
-        android:pathData="M60,42 C60,40.9 60.9,40 62,40 C63.1,40 64,40.9 64,42 L64,66 C64,67.1 63.1,68 62,68 C60.9,68 60,67.1 60,66 Z" />
+        android:strokeColor="#F1F2F5"
+        android:strokeAlpha="0.55"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M33,33 A29.7,29.7 0 0,0 33,75 M75,33 A29.7,29.7 0 0,1 75,75" />
 </vector>

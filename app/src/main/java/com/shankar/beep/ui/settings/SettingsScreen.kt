@@ -1,273 +1,188 @@
 package com.shankar.beep.ui.settings
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings as AndroidSettings
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.FlashlightOn
+import androidx.compose.material.icons.rounded.Fullscreen
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.PauseCircle
+import androidx.compose.material.icons.rounded.PrivacyTip
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.Vibration
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.shankar.beep.data.SoundCatalog
-import com.shankar.beep.data.UserPreferencesRepository
-import com.shankar.beep.ui.components.BeepTopBar
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shankar.beep.data.ThemeChoice
+import com.shankar.beep.ui.MainViewModel
+import com.shankar.beep.ui.components.BeepCard
+import com.shankar.beep.ui.components.Pill
 import com.shankar.beep.ui.components.SectionLabel
-import com.shankar.beep.ui.components.SurfaceCard
-import com.shankar.beep.ui.dashboard.DashboardViewModel
-import com.shankar.beep.ui.onboarding.AlertChannelCard
-import com.shankar.beep.ui.theme.Brass
-import com.shankar.beep.ui.theme.Hairline
-import com.shankar.beep.ui.theme.Ink
-import com.shankar.beep.ui.theme.Ivory
-import com.shankar.beep.ui.theme.IvoryMuted
-import com.shankar.beep.ui.theme.Panel
-import com.shankar.beep.ui.theme.Stone
-import com.shankar.beep.ui.theme.UiSans
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.shankar.beep.ui.components.SettingRow
+import com.shankar.beep.ui.theme.Beep
 
 @Composable
-fun SettingsScreen(
-    onBack: () -> Unit,
-    viewModel: DashboardViewModel,
-    userPreferencesRepository: UserPreferencesRepository
-) {
-    val userSettings by viewModel.userSettings.collectAsState()
-    val scope = rememberCoroutineScope()
+fun SettingsScreen(vm: MainViewModel, onOpenName: () -> Unit) {
+    val p = Beep.palette
+    val context = LocalContext.current
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val nameSamples by vm.nameSampleCount.collectAsStateWithLifecycle()
+    val s = settings ?: return
 
-    var nameInput by remember(userSettings.userName) { mutableStateOf(userSettings.userName) }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp)
+    ) {
+        Text("Settings", style = MaterialTheme.typography.headlineLarge, color = p.text)
+        Spacer(Modifier.height(20.dp))
 
-    LaunchedEffect(nameInput) {
-        delay(400)
-        if (nameInput.trim() != userSettings.userName) {
-            userPreferencesRepository.setUserName(nameInput)
-        }
-    }
-
-    Scaffold(
-        containerColor = Ink,
-        topBar = {
-            BeepTopBar(
-                title = "Preferences",
-                onBack = onBack
+        SectionLabel("How Beep alerts you")
+        BeepCard(Modifier.fillMaxWidth(), padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 4.dp)) {
+            SettingRow("Pause my music & videos", "Briefly pauses Spotify, YouTube and other players, then resumes", s.pauseMedia,
+                { on -> vm.updateSettings { it.copy(pauseMedia = on) } }, Icons.Rounded.PauseCircle)
+            SettingRow("Keep paused until I respond", "Media stays paused until you tap “Got it” (up to 2 minutes)", s.holdUntilDismissed,
+                { on -> vm.updateSettings { it.copy(holdUntilDismissed = on) } }, Icons.Rounded.Timer, enabled = s.pauseMedia)
+            Divider()
+            SettingRow("Alert tone", "A short chime in your headphones — a different melody per kind of sound", s.chime,
+                { on -> vm.updateSettings { it.copy(chime = on) } }, Icons.Rounded.MusicNote)
+            SettingRow("Vibration", "A distinct pattern per kind of sound, so you can feel what happened", s.vibrate,
+                { on -> vm.updateSettings { it.copy(vibrate = on) } }, Icons.Rounded.Vibration)
+            SettingRow(
+                "Flashlight strobe",
+                if (vm.hasFlash) "Flashes the camera light — visible across a dark room" else "This phone has no camera flash",
+                s.flash && vm.hasFlash,
+                { on -> vm.updateSettings { it.copy(flash = on) } }, Icons.Rounded.FlashlightOn, enabled = vm.hasFlash,
             )
+            SettingRow("Full-screen alert", "Wakes the screen with a big, colour-coded alert when your phone is locked", s.fullScreen,
+                { on -> vm.updateSettings { it.copy(fullScreen = on) } }, Icons.Rounded.Fullscreen)
         }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp),
-            contentPadding = PaddingValues(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(22.dp)
+        Spacer(Modifier.height(12.dp))
+        Button(
+            onClick = { vm.testAlert() },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = p.cardHigh, contentColor = p.text),
         ) {
-            item {
-                Column {
-                    SectionLabel(text = "Identity")
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = nameInput,
-                        onValueChange = { nameInput = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(58.dp),
-                        placeholder = { Text("Your name", color = Stone, fontFamily = UiSans) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Brass,
-                            unfocusedBorderColor = Hairline,
-                            focusedTextColor = Ivory,
-                            unfocusedTextColor = Ivory,
-                            cursorColor = Brass,
-                            focusedContainerColor = Panel,
-                            unfocusedContainerColor = Panel
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+            Icon(Icons.Rounded.NotificationsActive, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Text("Send a test alert")
+        }
+
+        Spacer(Modifier.height(24.dp))
+        SectionLabel("Your name")
+        BeepCard(Modifier.fillMaxWidth(), onClick = onOpenName) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(s.userName.ifBlank { "Not set" }, style = MaterialTheme.typography.titleMedium, color = p.text)
                     Text(
-                        text = "Used to detect when someone calls you.",
-                        color = Stone,
-                        fontFamily = UiSans,
-                        fontSize = 12.sp
+                        if (nameSamples >= 2) "$nameSamples voice samples · tap to re-record or test" else "Record your name so Beep can listen for it",
+                        style = MaterialTheme.typography.bodySmall, color = p.muted,
                     )
                 }
+                Icon(Icons.Rounded.ChevronRight, null, tint = p.faint)
             }
+        }
 
-            item {
-                Column {
-                    SectionLabel(text = "Listening mode")
-                    Spacer(modifier = Modifier.height(4.dp))
+        Spacer(Modifier.height(24.dp))
+        SectionLabel("Appearance")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ThemeChoice.entries.forEach { choice ->
+                Pill(choice.title, s.theme == choice, onClick = { vm.updateSettings { it.copy(theme = choice) } })
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+        SectionLabel("Reliability")
+        BeepCard(Modifier.fillMaxWidth(), onClick = {
+            val intent = Intent(AndroidSettings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            try { context.startActivity(intent) } catch (_: ActivityNotFoundException) {
+                context.startActivity(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName)))
+            }
+        }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.BatteryChargingFull, null, tint = p.text)
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Keep Beep running", style = MaterialTheme.typography.titleSmall, color = p.text)
                     Text(
-                        text = "One-tap bundles for common rooms.",
-                        color = IvoryMuted,
-                        fontFamily = UiSans,
-                        fontSize = 13.sp
+                        "Some phones stop background apps. Set Beep to “Unrestricted” battery use for all-day listening.",
+                        style = MaterialTheme.typography.bodySmall, color = p.muted,
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SoundCatalog.LISTENING_PRESETS.forEach { preset ->
-                            val isSelected = userSettings.activePresetName == preset.key
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(Panel)
-                                    .border(
-                                        1.dp,
-                                        if (isSelected) Brass.copy(alpha = 0.45f) else Hairline,
-                                        RoundedCornerShape(16.dp)
-                                    )
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = ripple(color = Brass.copy(alpha = 0.2f))
-                                    ) { viewModel.applyPreset(preset.key) }
-                                    .padding(16.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = preset.label,
-                                            color = if (isSelected) Brass else Ivory,
-                                            fontFamily = UiSans,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                        Spacer(modifier = Modifier.height(3.dp))
-                                        Text(
-                                            text = preset.description,
-                                            color = IvoryMuted,
-                                            fontFamily = UiSans,
-                                            fontSize = 12.sp
-                                        )
-                                    }
-                                    if (isSelected) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(8.dp)
-                                                .clip(CircleShape)
-                                                .background(Brass)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
+                Icon(Icons.Rounded.ChevronRight, null, tint = p.faint)
             }
-
-            item {
-                Column {
-                    SectionLabel(text = "Alert channels")
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        AlertChannelCard(
-                            title = "Headphone chime",
-                            subtitle = "Ducks music and plays a tone in-ear",
-                            checked = userSettings.isHeadphoneAudioAlertEnabled,
-                            onCheckedChange = { checked ->
-                                scope.launch {
-                                    userPreferencesRepository.setAlertPreferences(
-                                        headphoneAudio = checked,
-                                        haptic = userSettings.isHapticVibrationEnabled,
-                                        flashlight = userSettings.isFlashlightStrobeEnabled
-                                    )
-                                }
-                            }
-                        )
-
-                        AlertChannelCard(
-                            title = "Haptics",
-                            subtitle = "Distinct patterns for emergency, knock, and name",
-                            checked = userSettings.isHapticVibrationEnabled,
-                            onCheckedChange = { checked ->
-                                scope.launch {
-                                    userPreferencesRepository.setAlertPreferences(
-                                        headphoneAudio = userSettings.isHeadphoneAudioAlertEnabled,
-                                        haptic = checked,
-                                        flashlight = userSettings.isFlashlightStrobeEnabled
-                                    )
-                                }
-                            }
-                        )
-
-                        AlertChannelCard(
-                            title = "Torch strobe",
-                            subtitle = "Brief flashes when the phone is face down",
-                            checked = userSettings.isFlashlightStrobeEnabled,
-                            onCheckedChange = { checked ->
-                                scope.launch {
-                                    userPreferencesRepository.setAlertPreferences(
-                                        headphoneAudio = userSettings.isHeadphoneAudioAlertEnabled,
-                                        haptic = userSettings.isHapticVibrationEnabled,
-                                        flashlight = checked
-                                    )
-                                }
-                            }
-                        )
-                    }
+        }
+        if (Build.VERSION.SDK_INT >= 34) {
+            Spacer(Modifier.height(10.dp))
+            BeepCard(Modifier.fillMaxWidth(), onClick = {
+                runCatching {
+                    context.startActivity(
+                        Intent(AndroidSettings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:" + context.packageName))
+                    )
                 }
+            }) {
+                Text("Allow full-screen alerts", style = MaterialTheme.typography.titleSmall, color = p.text)
+                Text(
+                    "Android 14+ asks you to allow this so alerts can appear over the lock screen.",
+                    style = MaterialTheme.typography.bodySmall, color = p.muted,
+                )
             }
+        }
 
-            item {
+        Spacer(Modifier.height(24.dp))
+        SectionLabel("Privacy")
+        BeepCard(Modifier.fillMaxWidth()) {
+            Row {
+                Icon(Icons.Rounded.PrivacyTip, null, tint = p.signal)
+                Spacer(Modifier.width(16.dp))
                 Column {
-                    SectionLabel(text = "Engine")
-                    Spacer(modifier = Modifier.height(10.dp))
-                    SurfaceCard {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = "YAMNet, on device",
-                                color = Ivory,
-                                fontFamily = UiSans,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "AudioSet classifier · 521 classes\n16 kHz mono · 0.975s rolling window\nNo network. Nothing is uploaded.",
-                                color = IvoryMuted,
-                                fontFamily = UiSans,
-                                fontSize = 13.sp,
-                                lineHeight = 20.sp
-                            )
-                        }
-                    }
+                    Text("Everything stays on your phone", style = MaterialTheme.typography.titleSmall, color = p.text)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Beep analyses sound in memory and throws it away within a second. It never records, saves or uploads audio, " +
+                            "and has no internet permission at all. Your timeline keeps only the name of what was heard.",
+                        style = MaterialTheme.typography.bodySmall, color = p.muted,
+                    )
                 }
             }
         }
+
+        Spacer(Modifier.height(24.dp))
+        SectionLabel("About")
+        Text(
+            "Beep 2.0 · Sound recognition by YAMNet (521 AudioSet classes) running on-device with TensorFlow Lite. " +
+                "Name spotting with MFCC + dynamic time warping. Made as a final-year project.",
+            style = MaterialTheme.typography.bodySmall, color = p.faint,
+        )
+        Spacer(Modifier.height(40.dp))
     }
 }
+
+@Composable
+private fun Divider() = HorizontalDivider(color = Beep.palette.line, modifier = Modifier.padding(vertical = 4.dp))

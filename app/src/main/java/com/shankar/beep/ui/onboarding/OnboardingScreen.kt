@@ -14,7 +14,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,650 +25,259 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Badge
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.ripple
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.shankar.beep.data.SoundCatalog
-import com.shankar.beep.ui.components.BeepToggle
-import com.shankar.beep.ui.components.BeepTopBar
-import com.shankar.beep.ui.components.PrimaryButton
-import com.shankar.beep.ui.components.SoundRowCard
-import com.shankar.beep.ui.components.SurfaceCard
-import com.shankar.beep.ui.theme.Ash
-import com.shankar.beep.ui.theme.Brass
-import com.shankar.beep.ui.theme.BrassWash
-import com.shankar.beep.ui.theme.DisplaySerif
-import com.shankar.beep.ui.theme.Hairline
-import com.shankar.beep.ui.theme.Ink
-import com.shankar.beep.ui.theme.Ivory
-import com.shankar.beep.ui.theme.IvoryMuted
-import com.shankar.beep.ui.theme.Ochre
-import com.shankar.beep.ui.theme.Panel
-import com.shankar.beep.ui.theme.Stone
-import com.shankar.beep.ui.theme.UiSans
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shankar.beep.detect.Mode
+import com.shankar.beep.ui.MainViewModel
+import com.shankar.beep.ui.beepViewModel
+import com.shankar.beep.ui.components.BeepCard
+import com.shankar.beep.ui.components.ListeningOrb
+import com.shankar.beep.ui.components.OrbState
+import com.shankar.beep.ui.components.SoundIcons
+import com.shankar.beep.ui.record.NameEnrollment
+import com.shankar.beep.ui.record.NameViewModel
+import com.shankar.beep.ui.theme.Beep
+import com.shankar.beep.ui.theme.HomeTeal
+import com.shankar.beep.ui.theme.PeopleViolet
+import com.shankar.beep.ui.theme.SafetyRed
 
 @Composable
-fun OnboardingScreen(
-    onOnboardingFinished: () -> Unit,
-    viewModel: OnboardingViewModel = viewModel()
-) {
-    val currentStep by viewModel.currentStep.collectAsState()
-    val userName by viewModel.userName.collectAsState()
-    val selectedSoundIds by viewModel.selectedSoundIds.collectAsState()
-    val headphoneAlertEnabled by viewModel.headphoneAlertEnabled.collectAsState()
-    val hapticEnabled by viewModel.hapticEnabled.collectAsState()
-    val flashlightEnabled by viewModel.flashlightEnabled.collectAsState()
+fun OnboardingScreen(vm: MainViewModel, onFinished: () -> Unit) {
+    var step by rememberSaveable { mutableIntStateOf(0) }
+    val p = Beep.palette
 
-    var permissionsCheckKey by remember { mutableIntStateOf(0) }
-
-    val permissionsLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { _ ->
-        permissionsCheckKey++
-    }
-
-    val context = LocalContext.current
-    val requiredPermissions = remember {
-        val list = mutableListOf(
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.CAMERA
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            list.add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        list.toTypedArray()
-    }
-
-    val micGranted = remember(permissionsCheckKey) {
-        ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-            PackageManager.PERMISSION_GRANTED
-    }
-    val notificationGranted = remember(permissionsCheckKey) {
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-    }
-    val cameraGranted = remember(permissionsCheckKey) {
-        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-            PackageManager.PERMISSION_GRANTED
-    }
-
-    Scaffold(
-        containerColor = Ink,
-        topBar = {
-            BeepTopBar(
-                title = "Beep",
-                onBack = if (currentStep > 0) ({ viewModel.prevStep() }) else null
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                for (step in 0..3) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(2.dp)
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(if (step <= currentStep) Brass else Hairline)
-                    )
-                }
-            }
-
-            AnimatedContent(
-                targetState = currentStep,
-                transitionSpec = {
-                    if (targetState > initialState) {
-                        slideInHorizontally { it / 4 } + fadeIn() togetherWith
-                            slideOutHorizontally { -it / 4 } + fadeOut()
-                    } else {
-                        slideInHorizontally { -it / 4 } + fadeIn() togetherWith
-                            slideOutHorizontally { it / 4 } + fadeOut()
-                    }
-                },
-                label = "onboarding_step",
-                modifier = Modifier.weight(1f)
-            ) { step ->
-                when (step) {
-                    0 -> OnboardingWelcomeStep(
-                        onNext = { viewModel.nextStep() },
-                        onRequestPermissions = { permissionsLauncher.launch(requiredPermissions) },
-                        micGranted = micGranted,
-                        notificationGranted = notificationGranted,
-                        cameraGranted = cameraGranted
-                    )
-                    1 -> OnboardingNameStep(
-                        userName = userName,
-                        onNameChange = { viewModel.updateUserName(it) },
-                        onNext = { viewModel.nextStep() }
-                    )
-                    2 -> OnboardingSoundsStep(
-                        selectedIds = selectedSoundIds,
-                        onToggleSound = { viewModel.toggleSound(it) },
-                        onNext = { viewModel.nextStep() }
-                    )
-                    3 -> OnboardingAlertsStep(
-                        headphone = headphoneAlertEnabled,
-                        onHeadphoneChange = { viewModel.setHeadphoneAlert(it) },
-                        haptic = hapticEnabled,
-                        onHapticChange = { viewModel.setHaptic(it) },
-                        flashlight = flashlightEnabled,
-                        onFlashlightChange = { viewModel.setFlashlight(it) },
-                        onFinish = { viewModel.completeOnboarding(onOnboardingFinished) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun OnboardingWelcomeStep(
-    onNext: () -> Unit,
-    onRequestPermissions: () -> Unit,
-    micGranted: Boolean,
-    notificationGranted: Boolean,
-    cameraGranted: Boolean
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        Text(
-            text = "Hear what your headphones hide.",
-            color = Ivory,
-            fontFamily = DisplaySerif,
-            fontSize = 34.sp,
-            lineHeight = 40.sp,
-            fontWeight = FontWeight.Medium
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "Beep watches the room while you listen. Names, knocks, alarms — delivered into your ears. Audio never leaves the device.",
-            color = IvoryMuted,
-            fontFamily = UiSans,
-            fontSize = 15.sp,
-            lineHeight = 23.sp
-        )
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        SurfaceCard {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        // Progress dots
+        Row(Modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            repeat(4) { i ->
                 Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(BrassWash),
-                    contentAlignment = Alignment.Center
-                ) {
-                    androidx.compose.material3.Icon(
-                        imageVector = Icons.Outlined.Lock,
-                        contentDescription = null,
-                        tint = Brass,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column {
-                    Text(
-                        text = "On-device only",
-                        color = Ivory,
-                        fontFamily = UiSans,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Classification runs in memory. No cloud, no recordings stored.",
-                        color = IvoryMuted,
-                        fontFamily = UiSans,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp
-                    )
+                    Modifier.weight(1f).height(4.dp).clip(CircleShape)
+                        .background(if (i <= step) p.signal else p.cardHigh)
+                )
+            }
+        }
+        AnimatedContent(
+            targetState = step,
+            transitionSpec = {
+                (slideInHorizontally { it / 3 } + fadeIn()) togetherWith (slideOutHorizontally { -it / 3 } + fadeOut())
+            },
+            modifier = Modifier.weight(1f),
+            label = "onboarding",
+        ) { s ->
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
+                when (s) {
+                    0 -> Welcome()
+                    1 -> Permissions()
+                    2 -> NameStep()
+                    else -> ModeStep(vm)
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        SurfaceCard {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Access",
-                        color = Ivory,
-                        fontFamily = UiSans,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = if (micGranted && notificationGranted) "Ready" else "Required",
-                        color = if (micGranted && notificationGranted) Brass else Ochre,
-                        fontFamily = UiSans,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 0.4.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                PermissionStatusRow(
-                    label = "Microphone",
-                    detail = "Hears the room around you",
-                    granted = micGranted
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                PermissionStatusRow(
-                    label = "Notifications",
-                    detail = "Heads-up alerts when a sound is found",
-                    granted = notificationGranted
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                PermissionStatusRow(
-                    label = "Camera light",
-                    detail = "Optional. Used only for the torch strobe.",
-                    granted = cameraGranted
-                )
-
-                if (!micGranted || !notificationGranted) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(BrassWash)
-                            .border(1.dp, Brass.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(color = Brass.copy(alpha = 0.25f))
-                            ) { onRequestPermissions() }
-                            .padding(vertical = 12.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Grant access",
-                            color = Brass,
-                            fontFamily = UiSans,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
-        PrimaryButton(
-            text = "Continue",
-            onClick = onNext
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-    }
-}
-
-@Composable
-fun PermissionStatusRow(
-    label: String,
-    detail: String,
-    granted: Boolean
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(if (granted) Brass else Ash)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                color = Ivory,
-                fontFamily = UiSans,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = detail,
-                color = IvoryMuted,
-                fontFamily = UiSans,
-                fontSize = 12.sp
-            )
-        }
-        Text(
-            text = if (granted) "Granted" else "Off",
-            color = if (granted) Brass else Stone,
-            fontFamily = UiSans,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
-@Composable
-fun OnboardingNameStep(
-    userName: String,
-    onNameChange: (String) -> Unit,
-    onNext: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            Text(
-                text = "What should we listen for?",
-                color = Ivory,
-                fontFamily = DisplaySerif,
-                fontSize = 32.sp,
-                lineHeight = 38.sp,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "Your name, or a nickname people actually use. Beep will catch it through music.",
-                color = IvoryMuted,
-                fontFamily = UiSans,
-                fontSize = 15.sp,
-                lineHeight = 22.sp
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            OutlinedTextField(
-                value = userName,
-                onValueChange = onNameChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp),
-                placeholder = {
-                    Text("Your name", color = Stone, fontFamily = UiSans)
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Brass,
-                    unfocusedBorderColor = Hairline,
-                    focusedTextColor = Ivory,
-                    unfocusedTextColor = Ivory,
-                    cursorColor = Brass,
-                    focusedContainerColor = Panel,
-                    unfocusedContainerColor = Panel
-                )
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            SurfaceCard {
-                val displayName = userName.trim().ifBlank { "your name" }
-                Column {
-                    Text(
-                        text = "PHRASES",
-                        color = Stone,
-                        fontFamily = UiSans,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 1.4.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "$displayName\nHey $displayName\nHello $displayName",
-                        color = IvoryMuted,
-                        fontFamily = UiSans,
-                        fontSize = 14.sp,
-                        lineHeight = 22.sp
-                    )
-                }
-            }
-        }
-
-        Column(modifier = Modifier.padding(bottom = 24.dp, top = 16.dp)) {
-            PrimaryButton(
-                text = "Continue",
-                onClick = onNext
-            )
-        }
-    }
-}
-
-@Composable
-fun OnboardingSoundsStep(
-    selectedIds: Set<String>,
-    onToggleSound: (String) -> Unit,
-    onNext: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Text(
-            text = "Choose what matters.",
-            color = Ivory,
-            fontFamily = DisplaySerif,
-            fontSize = 32.sp,
-            lineHeight = 38.sp,
-            fontWeight = FontWeight.Medium
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Text(
-            text = "Only these sounds will interrupt you.",
-            color = IvoryMuted,
-            fontFamily = UiSans,
-            fontSize = 15.sp
-        )
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            items(SoundCatalog.DEFAULT_CATALOG, key = { it.id }) { sound ->
-                val isEnabled = selectedIds.contains(sound.id)
-                SoundRowCard(
-                    sound = sound,
-                    isEnabled = isEnabled,
-                    onToggle = { onToggleSound(sound.id) },
-                    onClick = { onToggleSound(sound.id) }
-                )
-            }
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-        }
-
-        PrimaryButton(
-            text = "Continue · ${selectedIds.size} selected",
-            onClick = onNext,
-            modifier = Modifier.padding(bottom = 24.dp, top = 12.dp)
-        )
-    }
-}
-
-@Composable
-fun OnboardingAlertsStep(
-    headphone: Boolean,
-    onHeadphoneChange: (Boolean) -> Unit,
-    haptic: Boolean,
-    onHapticChange: (Boolean) -> Unit,
-    flashlight: Boolean,
-    onFlashlightChange: (Boolean) -> Unit,
-    onFinish: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            Text(
-                text = "How should we reach you?",
-                color = Ivory,
-                fontFamily = DisplaySerif,
-                fontSize = 32.sp,
-                lineHeight = 38.sp,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "Each channel can work alone or together.",
-                color = IvoryMuted,
-                fontFamily = UiSans,
-                fontSize = 15.sp
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            AlertChannelCard(
-                title = "Headphone chime",
-                subtitle = "Ducks music and plays a short tone in-ear",
-                checked = headphone,
-                onCheckedChange = onHeadphoneChange
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            AlertChannelCard(
-                title = "Haptics",
-                subtitle = "A distinct pattern for emergency, knock, and name",
-                checked = haptic,
-                onCheckedChange = onHapticChange
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            AlertChannelCard(
-                title = "Torch strobe",
-                subtitle = "Brief flashes when the phone is face down",
-                checked = flashlight,
-                onCheckedChange = onFlashlightChange
-            )
-        }
-
-        Column(modifier = Modifier.padding(bottom = 24.dp, top = 16.dp)) {
-            PrimaryButton(
-                text = "Start listening",
-                onClick = onFinish
-            )
-        }
-    }
-}
-
-@Composable
-fun AlertChannelCard(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Panel)
-            .border(
-                1.dp,
-                if (checked) Brass.copy(alpha = 0.4f) else Hairline,
-                RoundedCornerShape(18.dp)
-            )
-            .padding(16.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
+        Row(Modifier.fillMaxWidth().padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (step > 0) TextButton(onClick = { step-- }) { Text("Back", color = p.muted) }
+            Spacer(Modifier.weight(1f))
+            if (step == 2) TextButton(onClick = { step++ }) { Text("Skip for now", color = p.muted) }
+            Spacer(Modifier.width(8.dp))
+            Button(
+                onClick = { if (step < 3) step++ else onFinished() },
+                colors = ButtonDefaults.buttonColors(containerColor = p.signal, contentColor = p.onSignal),
+                modifier = Modifier.height(52.dp),
+            ) {
                 Text(
-                    text = title,
-                    color = Ivory,
-                    fontFamily = UiSans,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = subtitle,
-                    color = IvoryMuted,
-                    fontFamily = UiSans,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp
+                    when (step) { 0 -> "Get started"; 3 -> "Start listening"; else -> "Continue" },
+                    style = MaterialTheme.typography.titleSmall,
                 )
             }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            BeepToggle(
-                checked = checked,
-                onCheckedChange = onCheckedChange
-            )
         }
     }
 }
 
 @Composable
-fun SleekAlertChannelCard(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    AlertChannelCard(
-        title = title,
-        subtitle = subtitle,
-        checked = checked,
-        onCheckedChange = onCheckedChange
+private fun Welcome() {
+    val p = Beep.palette
+    Spacer(Modifier.height(8.dp))
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        ListeningOrb(OrbState.LISTENING, 60f, onClick = {}, size = 200.dp)
+    }
+    Spacer(Modifier.height(24.dp))
+    Text("Never miss the\nsounds that matter.", style = MaterialTheme.typography.headlineLarge, color = p.text)
+    Spacer(Modifier.height(12.dp))
+    Text(
+        "Headphones on, deep in focus, or hard of hearing — Beep listens to the world around you and taps you on the shoulder when something important happens.",
+        style = MaterialTheme.typography.bodyLarge, color = p.muted,
     )
+    Spacer(Modifier.height(24.dp))
+    Feature(Icons.Rounded.GraphicEq, SafetyRed, "Recognises 20+ sounds", "Alarms, sirens, doorbells, knocks, babies, horns and more")
+    Feature(Icons.Rounded.Badge, PeopleViolet, "Knows your name", "Pauses your music when someone calls you")
+    Feature(Icons.Rounded.Lock, HomeTeal, "Private by design", "Runs entirely on your phone. No recording, no internet")
+}
+
+@Composable
+private fun Feature(icon: ImageVector, color: androidx.compose.ui.graphics.Color, title: String, body: String) {
+    val p = Beep.palette
+    Row(Modifier.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(44.dp).clip(CircleShape).background(color.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = color, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(16.dp))
+        Column {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = p.text)
+            Text(body, style = MaterialTheme.typography.bodySmall, color = p.muted)
+        }
+    }
+}
+
+@Composable
+private fun Permissions() {
+    val p = Beep.palette
+    val context = LocalContext.current
+    fun granted(perm: String) = ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
+    var mic by remember { mutableStateOf(granted(Manifest.permission.RECORD_AUDIO)) }
+    var notif by remember {
+        mutableStateOf(Build.VERSION.SDK_INT < 33 || granted(Manifest.permission.POST_NOTIFICATIONS))
+    }
+    LifecycleResumeEffect(Unit) {
+        mic = granted(Manifest.permission.RECORD_AUDIO)
+        notif = Build.VERSION.SDK_INT < 33 || granted(Manifest.permission.POST_NOTIFICATIONS)
+        onPauseOrDispose { }
+    }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        result[Manifest.permission.RECORD_AUDIO]?.let { mic = it }
+        result["android.permission.POST_NOTIFICATIONS"]?.let { notif = it }
+    }
+
+    Spacer(Modifier.height(8.dp))
+    Text("Two quick permissions", style = MaterialTheme.typography.headlineLarge, color = p.text)
+    Spacer(Modifier.height(12.dp))
+    Text(
+        "Beep needs to hear the room and to tell you what it heard. That's all it asks for.",
+        style = MaterialTheme.typography.bodyLarge, color = p.muted,
+    )
+    Spacer(Modifier.height(28.dp))
+    PermissionCard(
+        Icons.Rounded.Mic, "Microphone", "To recognise sounds around you. Audio is analysed in memory and immediately discarded.",
+        mic,
+    ) { launcher.launch(arrayOf(Manifest.permission.RECORD_AUDIO)) }
+    Spacer(Modifier.height(12.dp))
+    PermissionCard(
+        Icons.Rounded.Notifications, "Notifications", "To alert you — even when your phone is locked or in your pocket.",
+        notif,
+    ) { if (Build.VERSION.SDK_INT >= 33) launcher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS)) }
+    if (!mic) {
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "Without the microphone Beep can't listen. You can still look around and grant it later.",
+            style = MaterialTheme.typography.bodySmall, color = p.faint,
+        )
+    }
+}
+
+@Composable
+private fun PermissionCard(icon: ImageVector, title: String, body: String, granted: Boolean, onRequest: () -> Unit) {
+    val p = Beep.palette
+    BeepCard(Modifier.fillMaxWidth(), onClick = if (granted) null else onRequest) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = p.text)
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, color = p.text)
+                Text(body, style = MaterialTheme.typography.bodySmall, color = p.muted)
+            }
+            Spacer(Modifier.width(12.dp))
+            if (granted) {
+                Box(Modifier.size(32.dp).clip(CircleShape).background(HomeTeal), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Check, "Granted", tint = p.canvas, modifier = Modifier.size(18.dp))
+                }
+            } else {
+                Text("Allow", style = MaterialTheme.typography.labelLarge, color = p.signal)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NameStep() {
+    val p = Beep.palette
+    val nameVm = beepViewModel { NameViewModel(it) }
+    Spacer(Modifier.height(8.dp))
+    Text("Teach Beep your name", style = MaterialTheme.typography.headlineLarge, color = p.text)
+    Spacer(Modifier.height(12.dp))
+    Text(
+        "Say your name 3 times, the way people call you. Beep will pause your music when it hears it.",
+        style = MaterialTheme.typography.bodyLarge, color = p.muted,
+    )
+    Spacer(Modifier.height(24.dp))
+    NameEnrollment(nameVm, compact = true)
+}
+
+@Composable
+private fun ModeStep(vm: MainViewModel) {
+    val p = Beep.palette
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    var selected by rememberSaveable { mutableStateOf(settings?.mode ?: Mode.EVERYDAY) }
+    Spacer(Modifier.height(8.dp))
+    Text("Where are you now?", style = MaterialTheme.typography.headlineLarge, color = p.text)
+    Spacer(Modifier.height(12.dp))
+    Text(
+        "Pick a starting point. You can switch modes anytime or fine-tune every sound.",
+        style = MaterialTheme.typography.bodyLarge, color = p.muted,
+    )
+    Spacer(Modifier.height(24.dp))
+    Mode.entries.forEach { mode ->
+        val isSel = mode == selected
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(if (isSel) p.signal.copy(alpha = 0.12f) else p.card)
+                .border(1.dp, if (isSel) p.signal else p.line, RoundedCornerShape(20.dp))
+                .clickable {
+                    selected = mode
+                    vm.setMode(mode)
+                }
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(SoundIcons.of(mode.icon), null, tint = if (isSel) p.signal else p.muted)
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(mode.title, style = MaterialTheme.typography.titleSmall, color = p.text)
+                Text("${mode.tagline} · ${mode.sounds.size} sounds", style = MaterialTheme.typography.bodySmall, color = p.muted)
+            }
+        }
+    }
 }
